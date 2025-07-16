@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Activity,
   Calendar,
@@ -12,13 +12,13 @@ import {
   FileText,
   Bell,
   Phone,
-  Heart,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import LogoVector from "@/components/ui/LogoVector"
 
 // Import all page components
 import DashboardOverview from "./pages/dashboard-overview"
@@ -57,7 +57,7 @@ function Sidebar({
       <div className="space-y-4 py-4">
         <div className="px-3 py-2">
           <div className="flex items-center gap-2 mb-6">
-            <Heart className="h-8 w-8 text-green-600" />
+            <LogoVector className="h-8 w-8" />
             <div>
               <h2 className="text-lg font-semibold">NewLife RC</h2>
               <p className="text-sm text-muted-foreground">A New Beginning in Recovery</p>
@@ -84,6 +84,18 @@ function Sidebar({
 
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
+  const [userFirstName, setUserFirstName] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        setUserFirstName(user.first_name || null)
+      } catch {
+        setUserFirstName(null)
+      }
+    }
+  }, [])
 
   const renderContent = () => {
     switch (activeSection) {
@@ -139,7 +151,9 @@ export default function Dashboard() {
                 <h1 className="text-2xl font-bold text-gray-900">
                   NewLife Recovery - {sidebarItems.find((item) => item.key === activeSection)?.label}
                 </h1>
-                <p className="text-sm text-gray-500">Welcome back, Director McCormick</p>
+                <p className="text-sm text-gray-500">
+                  Welcome back{userFirstName ? `, ${userFirstName}` : ''}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4">

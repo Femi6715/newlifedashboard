@@ -1,0 +1,533 @@
+generator client {
+  provider  = "prisma-client-js"
+  mapFields = "camelCase"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:62221085@localhost:3306/newlife_recovery_db"
+}
+
+model activity_log {
+  id         Int       @id @default(autoincrement())
+  user_id    Int?
+  action     String    @db.VarChar(100)
+  table_name String?   @db.VarChar(50)
+  record_id  Int?
+  old_values Json?
+  new_values Json?
+  ip_address String?   @db.VarChar(45)
+  user_agent String?   @db.Text
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  users      users?    @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "activity_log_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model case_files {
+  id          Int                  @id @default(autoincrement())
+  client_id   Int
+  file_type   case_files_file_type
+  title       String               @db.VarChar(200)
+  description String?              @db.Text
+  file_path   String?              @db.VarChar(500)
+  file_size   Int?
+  uploaded_by Int?
+  status      case_files_status?   @default(active)
+  created_at  DateTime?            @default(now()) @db.Timestamp(0)
+  updated_at  DateTime?            @default(now()) @db.Timestamp(0)
+  client      clients              @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "case_files_ibfk_1")
+  users       users?               @relation(fields: [uploaded_by], references: [id], onUpdate: NoAction, map: "case_files_ibfk_2")
+
+  @@index([client_id, file_type], map: "idx_case_files_client_type")
+  @@index([uploaded_by], map: "uploaded_by")
+}
+
+model client_programs {
+  id              Int                     @id @default(autoincrement())
+  client_id       Int
+  program_id      Int
+  enrollment_date DateTime                @db.Date
+  completion_date DateTime?               @db.Date
+  status          client_programs_status? @default(enrolled)
+  progress_notes  String?                 @db.Text
+  created_at      DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at      DateTime?               @default(now()) @db.Timestamp(0)
+  client          clients                 @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "client_programs_ibfk_1")
+  programs        programs                @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "client_programs_ibfk_2")
+
+  @@index([client_id], map: "client_id")
+  @@index([program_id], map: "program_id")
+}
+
+model emergency_contacts {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(100)
+  phone        String    @db.VarChar(20)
+  relationship String?   @db.VarChar(50)
+  is_primary   Boolean?  @default(false)
+  notes        String?   @db.Text
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model intake_assessments {
+  id                    Int          @id @default(autoincrement())
+  intake_call_id        Int
+  client_id             Int?
+  assessment_date       DateTime     @db.DateTime(0)
+  primary_substance     String?      @db.VarChar(100)
+  usage_frequency       String?      @db.VarChar(100)
+  last_use_date         DateTime?    @db.Date
+  withdrawal_symptoms   String?      @db.Text
+  medical_history       String?      @db.Text
+  mental_health_history String?      @db.Text
+  legal_status          String?      @db.Text
+  insurance_verified    Boolean?     @default(false)
+  recommended_program   Int?
+  assessment_notes      String?      @db.Text
+  created_at            DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?    @default(now()) @db.Timestamp(0)
+  intake_calls          intake_calls @relation(fields: [intake_call_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "intake_assessments_ibfk_1")
+  clients               clients?     @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "intake_assessments_ibfk_2")
+  programs              programs?    @relation(fields: [recommended_program], references: [id], onUpdate: NoAction, map: "intake_assessments_ibfk_3")
+
+  @@index([client_id], map: "client_id")
+  @@index([intake_call_id], map: "intake_call_id")
+  @@index([recommended_program], map: "recommended_program")
+}
+
+model intake_calls {
+  id                 Int                         @id @default(autoincrement())
+  caller_name        String?                     @db.VarChar(100)
+  caller_phone       String                      @db.VarChar(20)
+  call_type          intake_calls_call_type
+  urgency_level      intake_calls_urgency_level? @default(medium)
+  call_date          DateTime                    @db.DateTime(0)
+  duration_minutes   Int?
+  call_summary       String?                     @db.Text
+  action_taken       String?                     @db.Text
+  follow_up_required Boolean?                    @default(false)
+  follow_up_date     DateTime?                   @db.Date
+  status             intake_calls_status?        @default(new)
+  handled_by         Int?
+  created_at         DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?                   @default(now()) @db.Timestamp(0)
+  intake_assessments intake_assessments[]
+  users              users?                      @relation(fields: [handled_by], references: [id], onUpdate: NoAction, map: "intake_calls_ibfk_1")
+
+  @@index([handled_by], map: "handled_by")
+  @@index([call_date], map: "idx_intake_calls_call_date")
+  @@index([status], map: "idx_intake_calls_status")
+}
+
+model medications {
+  id                Int                 @id @default(autoincrement())
+  client_id         Int
+  medication_name   String              @db.VarChar(100)
+  dosage            String?             @db.VarChar(50)
+  frequency         String?             @db.VarChar(50)
+  prescribed_by     String?             @db.VarChar(100)
+  prescription_date DateTime?           @db.Date
+  end_date          DateTime?           @db.Date
+  status            medications_status? @default(active)
+  notes             String?             @db.Text
+  created_at        DateTime?           @default(now()) @db.Timestamp(0)
+  updated_at        DateTime?           @default(now()) @db.Timestamp(0)
+  client            clients             @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "medications_ibfk_1")
+
+  @@index([client_id], map: "client_id")
+}
+
+model notifications {
+  id                Int                              @id @default(autoincrement())
+  user_id           Int
+  title             String                           @db.VarChar(200)
+  message           String                           @db.Text
+  notification_type notifications_notification_type? @default(info)
+  is_read           Boolean?                         @default(false)
+  created_at        DateTime?                        @default(now()) @db.Timestamp(0)
+  users             users                            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model programs {
+  id                 Int                   @id @default(autoincrement())
+  name               String                @db.VarChar(100)
+  description        String?               @db.Text
+  duration           String?               @db.VarChar(50)
+  capacity           Int
+  success_rate       Decimal?              @db.Decimal(5, 2)
+  status             programs_status?      @default(active)
+  program_type       programs_program_type
+  cost_per_day       Decimal?              @db.Decimal(10, 2)
+  created_at         DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?             @default(now()) @db.Timestamp(0)
+  client_programs    client_programs[]
+  intake_assessments intake_assessments[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model progress_notes {
+  id             Int                      @id @default(autoincrement())
+  client_id      Int
+  session_id     Int?
+  staff_id       Int
+  note_date      DateTime                 @db.Date
+  note_type      progress_notes_note_type
+  mood_rating    Int?
+  anxiety_level  Int?
+  cravings_level Int?
+  content        String                   @db.Text
+  goals_met      Boolean?                 @default(false)
+  next_steps     String?                  @db.Text
+  created_at     DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?                @default(now()) @db.Timestamp(0)
+  client         clients                  @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "progress_notes_ibfk_1")
+  sessions       sessions?                @relation(fields: [session_id], references: [id], onUpdate: NoAction, map: "progress_notes_ibfk_2")
+  staff          staff                    @relation(fields: [staff_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "progress_notes_ibfk_3")
+
+  @@index([client_id, note_date], map: "idx_progress_notes_client_date")
+  @@index([session_id], map: "session_id")
+  @@index([staff_id], map: "staff_id")
+}
+
+model session_participants {
+  id                Int                                     @id @default(autoincrement())
+  session_id        Int
+  client_id         Int?
+  staff_id          Int?
+  role              session_participants_role
+  attendance_status session_participants_attendance_status? @default(scheduled)
+  notes             String?                                 @db.Text
+  created_at        DateTime?                               @default(now()) @db.Timestamp(0)
+  sessions          sessions                                @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_participants_ibfk_1")
+  client            clients?                                @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_participants_ibfk_2")
+  staff             staff?                                  @relation(fields: [staff_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_participants_ibfk_3")
+
+  @@index([client_id], map: "client_id")
+  @@index([session_id], map: "session_id")
+  @@index([staff_id], map: "staff_id")
+}
+
+model sessions {
+  id                   Int                    @id @default(autoincrement())
+  session_type         sessions_session_type
+  title                String?                @db.VarChar(200)
+  description          String?                @db.Text
+  scheduled_date       DateTime               @db.Date
+  scheduled_time       DateTime               @db.Time(0)
+  duration_minutes     Int?                   @default(60)
+  status               sessions_status?       @default(scheduled)
+  room_location        String?                @db.VarChar(50)
+  max_participants     Int?                   @default(1)
+  notes                String?                @db.Text
+  created_at           DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?              @default(now()) @db.Timestamp(0)
+  progress_notes       progress_notes[]
+  session_participants session_participants[]
+
+  @@index([scheduled_date], map: "idx_sessions_scheduled_date")
+  @@index([status], map: "idx_sessions_status")
+}
+
+model staff {
+  id                   Int                        @id @default(autoincrement())
+  user_id              Int?
+  employee_id          String                     @unique(map: "employee_id") @db.VarChar(20)
+  title                String                     @db.VarChar(100)
+  specialization       String?                    @db.VarChar(100)
+  phone                String?                    @db.VarChar(20)
+  emergency_contact    String?                    @db.VarChar(20)
+  hire_date            DateTime                   @db.Date
+  status               staff_status?              @default(active)
+  availability_status  staff_availability_status? @default(available)
+  max_clients          Int?                       @default(20)
+  created_at           DateTime?                  @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?                  @default(now()) @db.Timestamp(0)
+  progress_notes       progress_notes[]
+  session_participants session_participants[]
+  users                users?                     @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "staff_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model system_settings {
+  id            Int                           @id @default(autoincrement())
+  setting_key   String                        @unique(map: "setting_key") @db.VarChar(100)
+  setting_value String?                       @db.Text
+  setting_type  system_settings_setting_type? @default(string)
+  description   String?                       @db.Text
+  created_at    DateTime?                     @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?                     @default(now()) @db.Timestamp(0)
+}
+
+model users {
+  id            Int             @id @default(autoincrement())
+  username      String          @unique(map: "username") @db.VarChar(50)
+  email         String          @unique(map: "email") @db.VarChar(100)
+  password_hash String          @db.VarChar(255)
+  first_name    String          @db.VarChar(50)
+  last_name     String          @db.VarChar(50)
+  role          users_role
+  is_active     Boolean?        @default(true)
+  last_login    DateTime?       @db.DateTime(0)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+  activity_log  activity_log[]
+  case_files    case_files[]
+  intake_calls  intake_calls[]
+  notifications notifications[]
+  staff         staff[]
+  posts         post_board[]
+  post_access   post_board_users[]
+}
+
+model clients {
+  id                      Int                    @id @default(autoincrement())
+  client_id               String                 @unique(map: "client_id") @db.VarChar(20)
+  first_name              String                 @db.VarChar(50)
+  last_name               String                 @db.VarChar(50)
+  date_of_birth           DateTime?              @db.Date
+  gender                  clients_gender?
+  email                   String?                @db.VarChar(100)
+  phone                   String?                @db.VarChar(20)
+  emergency_contact_name  String?                @db.VarChar(100)
+  emergency_contact_phone String?                @db.VarChar(20)
+  address                 String?                @db.Text
+  insurance_provider      String?                @db.VarChar(100)
+  insurance_policy_number String?                @db.VarChar(50)
+  primary_diagnosis       String?                @db.Text
+  admission_date          DateTime?              @db.Date
+  discharge_date          DateTime?              @db.Date
+  status                  clients_status?        @default(active)
+  progress_percentage     Int?                   @default(0)
+  notes                   String?                @db.Text
+  created_at              DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?              @default(now()) @db.Timestamp(0)
+  case_files              case_files[]
+  client_programs         client_programs[]
+  intake_assessments      intake_assessments[]
+  medications             medications[]
+  progress_notes          progress_notes[]
+  session_participants    session_participants[]
+
+  @@index([admission_date], map: "idx_clients_admission_date")
+  @@index([status], map: "idx_clients_status")
+}
+
+model post_board {
+  id          Int                    @id @default(autoincrement())
+  title       String                 @db.VarChar(200)
+  content     String                 @db.Text
+  author_id   Int
+  visibility  post_board_visibility
+  status      post_board_status?     @default(active)
+  created_at  DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at  DateTime?              @default(now()) @db.Timestamp(0)
+  author      users                  @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "post_board_ibfk_1")
+  post_roles  post_board_roles[]
+  post_users  post_board_users[]
+
+  @@index([author_id], map: "author_id")
+  @@index([visibility], map: "visibility")
+  @@index([status], map: "status")
+  @@index([created_at], map: "created_at")
+}
+
+model post_board_roles {
+  id         Int                    @id @default(autoincrement())
+  post_id    Int
+  role       users_role
+  created_at DateTime?              @default(now()) @db.Timestamp(0)
+  post       post_board             @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "post_board_roles_ibfk_1")
+
+  @@unique([post_id, role], map: "unique_post_role")
+  @@index([post_id], map: "post_id")
+  @@index([role], map: "role")
+}
+
+model post_board_users {
+  id         Int                    @id @default(autoincrement())
+  post_id    Int
+  user_id    Int
+  created_at DateTime?              @default(now()) @db.Timestamp(0)
+  post       post_board             @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "post_board_users_ibfk_1")
+  user       users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "post_board_users_ibfk_2")
+
+  @@unique([post_id, user_id], map: "unique_post_user")
+  @@index([post_id], map: "post_id")
+  @@index([user_id], map: "user_id")
+}
+
+enum sessions_session_type {
+  individual
+  group
+  family
+  assessment
+  follow_up
+}
+
+enum case_files_file_type {
+  intake
+  assessment
+  treatment_plan
+  progress_note
+  discharge
+  legal
+  medical
+}
+
+enum intake_calls_call_type {
+  emergency
+  inquiry
+  follow_up
+  referral
+}
+
+enum system_settings_setting_type {
+  string
+  integer
+  boolean
+  json
+}
+
+enum intake_calls_urgency_level {
+  low
+  medium
+  high
+  critical
+}
+
+enum notifications_notification_type {
+  info
+  warning
+  error
+  success
+  emergency
+}
+
+enum session_participants_role {
+  client
+  therapist
+  observer
+  family_member
+}
+
+enum client_programs_status {
+  enrolled
+  in_progress
+  completed
+  withdrawn
+  discharged
+}
+
+enum progress_notes_note_type {
+  session
+  daily
+  weekly
+  monthly
+  incident
+  medication
+}
+
+enum session_participants_attendance_status {
+  scheduled
+  attended
+  no_show
+  cancelled
+}
+
+enum programs_status {
+  active
+  inactive
+  discontinued
+}
+
+enum users_role {
+  admin
+  clinical_director
+  counselor
+  nurse
+  therapist
+  staff
+}
+
+enum programs_program_type {
+  residential
+  outpatient
+  aftercare
+  detox
+  partial_hospitalization
+}
+
+enum sessions_status {
+  scheduled
+  in_progress
+  completed
+  cancelled
+  no_show
+}
+
+enum case_files_status {
+  draft
+  active
+  archived
+  pending_review
+}
+
+enum medications_status {
+  active
+  discontinued
+  completed
+}
+
+enum staff_status {
+  active
+  inactive
+  on_leave
+  terminated
+}
+
+enum staff_availability_status {
+  available
+  in_session
+  on_call
+  off_duty
+}
+
+enum intake_calls_status {
+  new
+  in_progress
+  completed
+  escalated
+}
+
+enum clients_gender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum clients_status {
+  active
+  discharged
+  aftercare
+  relapsed
+  transferred
+}
+
+enum post_board_visibility {
+  public
+  role_based
+  user_specific
+  private
+}
+
+enum post_board_status {
+  draft
+  active
+  archived
+  deleted
+}
